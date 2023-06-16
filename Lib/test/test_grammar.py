@@ -1847,6 +1847,76 @@ class GrammarTests(unittest.TestCase):
         ):
             pass
 
+    def test_ifd_statement(self):
+        class manager(object):
+            def __enter__(self):
+                return (1, 2)
+
+            def __exit__(self, *args):
+                pass
+
+        ifd manager():
+            pass
+        ifd manager() as x:
+            pass
+        ifd manager() as (x, y):
+            pass
+        ifd manager(), manager():
+            pass
+        ifd manager() as x, manager() as y:
+            pass
+        ifd manager() as x, manager():
+            pass
+
+        ifd(
+            manager()
+        ):
+            pass
+
+        ifd(
+            manager() as x
+        ):
+            pass
+
+        ifd(
+            manager() as (x, y),
+            manager() as z,
+        ):
+            pass
+
+        ifd(
+            manager(),
+            manager()
+        ):
+            pass
+
+        ifd(
+            manager() as x,
+            manager() as y
+        ):
+            pass
+
+        ifd(
+            manager() as x,
+            manager()
+        ):
+            pass
+
+        ifd(
+            manager() as x,
+            manager() as y,
+            manager() as z,
+        ):
+            pass
+
+        ifd(
+            manager() as x,
+            manager() as y,
+            manager(),
+        ):
+            pass
+
+
     def test_if_else_expr(self):
         # Test ifelse expressions in various cases
         def _checkeval(msg, ret):

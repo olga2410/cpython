@@ -87,6 +87,7 @@ compound_stmt[stmt_ty]:
     | &'try' try_stmt
     | &'while' while_stmt
     | match_stmt
+    | &'ifd' ifd_stmt
 
 # NOTE: annotated_rhs may start with 'yield'; yield_expr must start with 'yield'
 assignment[stmt_ty]:
@@ -200,6 +201,15 @@ with_stmt[stmt_ty]:
     | ASYNC 'with' a[asdl_withitem_seq*]=','.with_item+ ':' tc=[TYPE_COMMENT] b=block {
        CHECK_VERSION(stmt_ty, 5, "Async with statements are", _PyAST_AsyncWith(a, b, NEW_TYPE_COMMENT(p, tc), EXTRA)) }
     | invalid_with_stmt
+
+ifd_stmt[stmt_ty]:
+    | invalid_with_stmt_indent
+    | 'ifd' '(' a[asdl_withitem_seq*]=','.with_item+ ','? ')' ':' b=block {
+        CHECK_VERSION(stmt_ty, 9, "Parenthesized context managers are", _PyAST_With(a, b, NULL, EXTRA)) }
+    | 'ifd' a[asdl_withitem_seq*]=','.with_item+ ':' tc=[TYPE_COMMENT] b=block {
+        _PyAST_With(a, b, NEW_TYPE_COMMENT(p, tc), EXTRA) }
+    | invalid_with_stmt
+
 
 with_item[withitem_ty]:
     | e=expression 'as' t=star_target &(',' | ')' | ':') { _PyAST_withitem(e, t, p->arena) }

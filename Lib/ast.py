@@ -1081,6 +1081,13 @@ class _Unparser(NodeVisitor):
         with self.block(extra=self.get_type_comment(node)):
             self.traverse(node.body)
 
+    def visit_Ifd(self, node):
+        self.fill("ifd ")
+        self.interleave(lambda: self.write(", "), self.traverse, node.items)
+        with self.block(extra=self.get_type_comment(node)):
+            self.traverse(node.body)
+
+
     def visit_AsyncWith(self, node):
         self.fill("async with ")
         self.interleave(lambda: self.write(", "), self.traverse, node.items)

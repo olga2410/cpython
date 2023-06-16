@@ -35,6 +35,7 @@ module Python
           | If(expr test, stmt* body, stmt* orelse)
           | With(withitem* items, stmt* body, string? type_comment)
           | AsyncWith(withitem* items, stmt* body, string? type_comment)
+          | Ifd(withitem* items, stmt* body, string? type_comment)
 
           | Match(expr subject, match_case* cases)
 

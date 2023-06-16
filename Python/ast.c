@@ -754,6 +754,18 @@ validate_stmt(struct validator *state, stmt_ty stmt)
         }
         ret = validate_body(state, stmt->v.With.body, "With");
         break;
+    case Ifd_kind:
+        if (!validate_nonempty_seq(stmt->v.Ifd.items, "items", "Ifd"))
+            return 0;
+        for (i = 0; i < asdl_seq_LEN(stmt->v.Ifd.items); i++)
+        {
+            withitem_ty item = asdl_seq_GET(stmt->v.Ifd.items, i);
+            if (!validate_expr(state, item->context_expr, Load) ||
+                (item->optional_vars && !validate_expr(state, item->optional_vars, Store)))
+                return 0;
+        }
+        ret = validate_body(state, stmt->v.Ifd.body, "Ifd");
+        break;
     case AsyncWith_kind:
         if (!validate_nonempty_seq(stmt->v.AsyncWith.items, "items", "AsyncWith"))
             return 0;
