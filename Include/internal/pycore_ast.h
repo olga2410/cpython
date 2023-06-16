@@ -178,10 +178,10 @@ enum _stmt_kind {FunctionDef_kind=1, AsyncFunctionDef_kind=2, ClassDef_kind=3,
                   Return_kind=4, Delete_kind=5, Assign_kind=6,
                   AugAssign_kind=7, AnnAssign_kind=8, For_kind=9,
                   AsyncFor_kind=10, While_kind=11, If_kind=12, With_kind=13,
-                  AsyncWith_kind=14, Match_kind=15, Raise_kind=16, Try_kind=17,
-                  Assert_kind=18, Import_kind=19, ImportFrom_kind=20,
-                  Global_kind=21, Nonlocal_kind=22, Expr_kind=23, Pass_kind=24,
-                  Break_kind=25, Continue_kind=26};
+                  AsyncWith_kind=14, Ifd_kind=15, Match_kind=16, Raise_kind=17,
+                  Try_kind=18, Assert_kind=19, Import_kind=20,
+                  ImportFrom_kind=21, Global_kind=22, Nonlocal_kind=23,
+                  Expr_kind=24, Pass_kind=25, Break_kind=26, Continue_kind=27};
 struct _stmt {
     enum _stmt_kind kind;
     union {
@@ -277,6 +277,12 @@ struct _stmt {
             asdl_stmt_seq *body;
             string type_comment;
         } AsyncWith;
+
+        struct {
+            asdl_withitem_seq *items;
+            asdl_stmt_seq *body;
+            string type_comment;
+        } Ifd;
 
         struct {
             expr_ty subject;
@@ -679,6 +685,9 @@ stmt_ty _PyAST_With(asdl_withitem_seq * items, asdl_stmt_seq * body, string
 stmt_ty _PyAST_AsyncWith(asdl_withitem_seq * items, asdl_stmt_seq * body,
                          string type_comment, int lineno, int col_offset, int
                          end_lineno, int end_col_offset, PyArena *arena);
+stmt_ty _PyAST_Ifd(asdl_withitem_seq * items, asdl_stmt_seq * body, string
+                   type_comment, int lineno, int col_offset, int end_lineno,
+                   int end_col_offset, PyArena *arena);
 stmt_ty _PyAST_Match(expr_ty subject, asdl_match_case_seq * cases, int lineno,
                      int col_offset, int end_lineno, int end_col_offset,
                      PyArena *arena);

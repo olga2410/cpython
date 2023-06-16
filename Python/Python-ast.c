@@ -80,6 +80,7 @@ void _PyAST_Fini(PyInterpreterState *interp)
     Py_CLEAR(state->Gt_type);
     Py_CLEAR(state->IfExp_type);
     Py_CLEAR(state->If_type);
+    Py_CLEAR(state->Ifd_type);
     Py_CLEAR(state->ImportFrom_type);
     Py_CLEAR(state->Import_type);
     Py_CLEAR(state->In_singleton);
@@ -468,6 +469,11 @@ static const char * const With_fields[]={
     "type_comment",
 };
 static const char * const AsyncWith_fields[]={
+    "items",
+    "body",
+    "type_comment",
+};
+static const char * const Ifd_fields[]={
     "items",
     "body",
     "type_comment",
@@ -1136,6 +1142,7 @@ init_types(struct ast_state *state)
         "     | If(expr test, stmt* body, stmt* orelse)\n"
         "     | With(withitem* items, stmt* body, string? type_comment)\n"
         "     | AsyncWith(withitem* items, stmt* body, string? type_comment)\n"
+        "     | Ifd(withitem* items, stmt* body, string? type_comment)\n"
         "     | Match(expr subject, match_case* cases)\n"
         "     | Raise(expr? exc, expr? cause)\n"
         "     | Try(stmt* body, excepthandler* handlers, stmt* orelse, stmt* finalbody)\n"
@@ -1238,6 +1245,11 @@ init_types(struct ast_state *state)
     if (!state->AsyncWith_type) return 0;
     if (PyObject_SetAttr(state->AsyncWith_type, state->type_comment, Py_None)
         == -1)
+        return 0;
+    state->Ifd_type = make_type(state, "Ifd", state->stmt_type, Ifd_fields, 3,
+        "Ifd(withitem* items, stmt* body, string? type_comment)");
+    if (!state->Ifd_type) return 0;
+    if (PyObject_SetAttr(state->Ifd_type, state->type_comment, Py_None) == -1)
         return 0;
     state->Match_type = make_type(state, "Match", state->stmt_type,
                                   Match_fields, 2,
@@ -2307,6 +2319,26 @@ _PyAST_AsyncWith(asdl_withitem_seq * items, asdl_stmt_seq * body, string
     p->v.AsyncWith.items = items;
     p->v.AsyncWith.body = body;
     p->v.AsyncWith.type_comment = type_comment;
+    p->lineno = lineno;
+    p->col_offset = col_offset;
+    p->end_lineno = end_lineno;
+    p->end_col_offset = end_col_offset;
+    return p;
+}
+
+stmt_ty
+_PyAST_Ifd(asdl_withitem_seq * items, asdl_stmt_seq * body, string
+           type_comment, int lineno, int col_offset, int end_lineno, int
+           end_col_offset, PyArena *arena)
+{
+    stmt_ty p;
+    p = (stmt_ty)_PyArena_Malloc(arena, sizeof(*p));
+    if (!p)
+        return NULL;
+    p->kind = Ifd_kind;
+    p->v.Ifd.items = items;
+    p->v.Ifd.body = body;
+    p->v.Ifd.type_comment = type_comment;
     p->lineno = lineno;
     p->col_offset = col_offset;
     p->end_lineno = end_lineno;
@@ -3983,6 +4015,27 @@ ast2obj_stmt(struct ast_state *state, void* _o)
             goto failed;
         Py_DECREF(value);
         value = ast2obj_string(state, o->v.AsyncWith.type_comment);
+        if (!value) goto failed;
+        if (PyObject_SetAttr(result, state->type_comment, value) == -1)
+            goto failed;
+        Py_DECREF(value);
+        break;
+    case Ifd_kind:
+        tp = (PyTypeObject *)state->Ifd_type;
+        result = PyType_GenericNew(tp, NULL, NULL);
+        if (!result) goto failed;
+        value = ast2obj_list(state, (asdl_seq*)o->v.Ifd.items,
+                             ast2obj_withitem);
+        if (!value) goto failed;
+        if (PyObject_SetAttr(result, state->items, value) == -1)
+            goto failed;
+        Py_DECREF(value);
+        value = ast2obj_list(state, (asdl_seq*)o->v.Ifd.body, ast2obj_stmt);
+        if (!value) goto failed;
+        if (PyObject_SetAttr(result, state->body, value) == -1)
+            goto failed;
+        Py_DECREF(value);
+        value = ast2obj_string(state, o->v.Ifd.type_comment);
         if (!value) goto failed;
         if (PyObject_SetAttr(result, state->type_comment, value) == -1)
             goto failed;
@@ -7191,6 +7244,112 @@ obj2ast_stmt(struct ast_state *state, PyObject* obj, stmt_ty* out, PyArena*
         }
         *out = _PyAST_AsyncWith(items, body, type_comment, lineno, col_offset,
                                 end_lineno, end_col_offset, arena);
+        if (*out == NULL) goto failed;
+        return 0;
+    }
+    tp = state->Ifd_type;
+    isinstance = PyObject_IsInstance(obj, tp);
+    if (isinstance == -1) {
+        return 1;
+    }
+    if (isinstance) {
+        asdl_withitem_seq* items;
+        asdl_stmt_seq* body;
+        string type_comment;
+
+        if (_PyObject_LookupAttr(obj, state->items, &tmp) < 0) {
+            return 1;
+        }
+        if (tmp == NULL) {
+            PyErr_SetString(PyExc_TypeError, "required field \"items\" missing from Ifd");
+            return 1;
+        }
+        else {
+            int res;
+            Py_ssize_t len;
+            Py_ssize_t i;
+            if (!PyList_Check(tmp)) {
+                PyErr_Format(PyExc_TypeError, "Ifd field \"items\" must be a list, not a %.200s", _PyType_Name(Py_TYPE(tmp)));
+                goto failed;
+            }
+            len = PyList_GET_SIZE(tmp);
+            items = _Py_asdl_withitem_seq_new(len, arena);
+            if (items == NULL) goto failed;
+            for (i = 0; i < len; i++) {
+                withitem_ty val;
+                PyObject *tmp2 = PyList_GET_ITEM(tmp, i);
+                Py_INCREF(tmp2);
+                if (Py_EnterRecursiveCall(" while traversing 'Ifd' node")) {
+                    goto failed;
+                }
+                res = obj2ast_withitem(state, tmp2, &val, arena);
+                Py_LeaveRecursiveCall();
+                Py_DECREF(tmp2);
+                if (res != 0) goto failed;
+                if (len != PyList_GET_SIZE(tmp)) {
+                    PyErr_SetString(PyExc_RuntimeError, "Ifd field \"items\" changed size during iteration");
+                    goto failed;
+                }
+                asdl_seq_SET(items, i, val);
+            }
+            Py_CLEAR(tmp);
+        }
+        if (_PyObject_LookupAttr(obj, state->body, &tmp) < 0) {
+            return 1;
+        }
+        if (tmp == NULL) {
+            PyErr_SetString(PyExc_TypeError, "required field \"body\" missing from Ifd");
+            return 1;
+        }
+        else {
+            int res;
+            Py_ssize_t len;
+            Py_ssize_t i;
+            if (!PyList_Check(tmp)) {
+                PyErr_Format(PyExc_TypeError, "Ifd field \"body\" must be a list, not a %.200s", _PyType_Name(Py_TYPE(tmp)));
+                goto failed;
+            }
+            len = PyList_GET_SIZE(tmp);
+            body = _Py_asdl_stmt_seq_new(len, arena);
+            if (body == NULL) goto failed;
+            for (i = 0; i < len; i++) {
+                stmt_ty val;
+                PyObject *tmp2 = PyList_GET_ITEM(tmp, i);
+                Py_INCREF(tmp2);
+                if (Py_EnterRecursiveCall(" while traversing 'Ifd' node")) {
+                    goto failed;
+                }
+                res = obj2ast_stmt(state, tmp2, &val, arena);
+                Py_LeaveRecursiveCall();
+                Py_DECREF(tmp2);
+                if (res != 0) goto failed;
+                if (len != PyList_GET_SIZE(tmp)) {
+                    PyErr_SetString(PyExc_RuntimeError, "Ifd field \"body\" changed size during iteration");
+                    goto failed;
+                }
+                asdl_seq_SET(body, i, val);
+            }
+            Py_CLEAR(tmp);
+        }
+        if (_PyObject_LookupAttr(obj, state->type_comment, &tmp) < 0) {
+            return 1;
+        }
+        if (tmp == NULL || tmp == Py_None) {
+            Py_CLEAR(tmp);
+            type_comment = NULL;
+        }
+        else {
+            int res;
+            if (Py_EnterRecursiveCall(" while traversing 'Ifd' node")) {
+                goto failed;
+            }
+            res = obj2ast_string(state, tmp, &type_comment, arena);
+            Py_LeaveRecursiveCall();
+            if (res != 0) goto failed;
+            Py_CLEAR(tmp);
+        }
+        *out = _PyAST_Ifd(items, body, type_comment, lineno, col_offset,
+                          end_lineno, end_col_offset, arena);
         if (*out == NULL) goto failed;
         return 0;
     }
@@ -11673,6 +11832,9 @@ astmodule_exec(PyObject *m)
         return -1;
     }
     if (PyModule_AddObjectRef(m, "AsyncWith", state->AsyncWith_type) < 0) {
+        return -1;
+    }
+    if (PyModule_AddObjectRef(m, "Ifd", state->Ifd_type) < 0) {
         return -1;
     }
     if (PyModule_AddObjectRef(m, "Match", state->Match_type) < 0) {
